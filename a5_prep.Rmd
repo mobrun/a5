@@ -1,0 +1,67 @@
+---
+title: "A5"
+author: "SUS Teaching Team"
+date: "October 22, 2018"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(censusapi)
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+```
+
+```{r}
+Sys.setenv(CENSUS_KEY="bf1905599ade12a84a1e2fd8c22103d87b5269f4")
+```
+
+```{r}
+vars_of_int    <- c(paste("B19001_00", 1:9, sep = ""), paste("B19001_0", 10:17, sep = ""))
+vars_of_int_E  <- c(paste("B19001_00", 1:9, "E", sep = ""), paste("B19001_0", 10:17, "E", sep = ""))
+```
+
+
+```{r}
+# test <- getCensus(name = "acs/acs5", vintage = 2016, vars = c("NAME", "group(B19001)"), region = "tract:*", regionin = "state:06+county:001,013,041,055,075,081,085,095,097")
+counties <- getCensus(name = "acs/acs5", vintage = 2016, vars = c("NAME","group(B19001)"), region = "county:001,013,041,055,075,081,085,095,097", regionin = "state:06")
+
+bay_area <- select(counties,c("state","county", "NAME", vars_of_int_E)) %>% gather(variable, value, -c("state","county", "NAME")) %>% group_by(variable) %>% summarize("estimate_total" = sum(value))
+```
+
+
+listCensusMetadata(name = "acs/acs5", vintage = 2016, type = "variables")
+
+Split up by race, get totals in each income bracket, then then race/total in each income bracket. 
+vector("list", length)
+
+```{r}
+groups <- vector("list", 9)
+# var_groups <- c()
+
+for (i in 1:9) {
+  
+  var_name <- paste("group(B19001",LETTERS[i],")", sep = "")
+  
+  counties_race <- getCensus(name = "acs/acs5", vintage = 2016, vars = c("NAME",var_name), region = "county:001,013,041,055,075,081,085,095,097", regionin = "state:06")
+  
+  
+  group_name <- paste("B19001",LETTERS[i], sep = "")
+  
+  vars_of_int_loop <- c(paste(group_name,"_00", 1:9, "E", sep = ""), paste(group_name,"_0", 10:17, "E", sep = ""))
+  
+  # var_name <- paste("estimate", LETTERS[i], sep = "_")
+  
+  groups[[i]] <- select(counties_race,c("state","county", "NAME", vars_of_int_loop)) %>% gather(variable, value, -c("state","county", "NAME")) %>% group_by(variable) %>% summarise("estimate" = sum(value)) %>% select(estimate)
+  
+}
+
+View(do.call(cbind, groups))
+```
+
