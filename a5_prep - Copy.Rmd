@@ -1,7 +1,6 @@
 ---
 title: "A5"
 author: "SUS Teaching Team"
-date: "October 22, 2018"
 output: html_document
 editor_options: 
   chunk_output_type: console
@@ -11,6 +10,7 @@ editor_options:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+Loading the required libraries. 
 ```{r}
 library(censusapi)
 library(dplyr)
@@ -18,54 +18,49 @@ library(ggplot2)
 library(tidyr)
 ```
 
+Enter your census key here. 
 ```{r}
 Sys.setenv(CENSUS_KEY="bf1905599ade12a84a1e2fd8c22103d87b5269f4")
 ```
 
-```{r}
-vars_of_int    <- c(paste("B19001_00", 1:9, sep = ""), paste("B19001_0", 10:17, sep = ""))
-vars_of_int_E  <- c(paste("B19001_00", 1:9, "E", sep = ""), paste("B19001_0", 10:17, "E", sep = ""))
-```
-
 
 ```{r}
-# test <- getCensus(name = "acs/acs5", vintage = 2016, vars = c("NAME", "group(B19001)"), region = "tract:*", regionin = "state:06+county:001,013,041,055,075,081,085,095,097")
-counties <- getCensus(name = "acs/acs5", vintage = 2016, vars = c("NAME","group(B19001)"), region = "county:001,013,041,055,075,081,085,095,097", regionin = "state:06")
+county <- "001,013,041,055,075,081,085,095,097"
 
-bay_area <- select(counties,c("state","county", "NAME", vars_of_int_E)) %>% gather(variable, value, -c("state","county", "NAME")) %>% group_by(variable) %>% summarize("estimate_total" = sum(value))
-```
-
-
-listCensusMetadata(name = "acs/acs5", vintage = 2016, type = "variables")
-
-Split up by race, get totals in each income bracket, then then race/total in each income bracket. 
-vector("list", length)
-
-```{r}
+# Enter the number of categories here. 
 num_cats <- 7
-num_tiers <- nrow(bay_area)
 groups <- vector("list", num_cats)
-# var_groups <- c()
+
 
 for (i in 1:num_cats) {
   
+  # First group - tk
   var_name <- paste("group(B19001",LETTERS[i],")", sep = "")
   
-  counties_race <- getCensus(name = "acs/acs5", vintage = 2016, vars = c("NAME",var_name), region = "county:001,013,041,055,075,081,085,095,097", regionin = "state:06")
+  # var_name <- "group(B08113)"
   
+  counties_race <- getCensus(name = "acs/acs5", vintage = 2016, vars = c("NAME",var_name), region = paste("county:",county, sep = ""), regionin = "state:06")
   
+  # tk 
   group_name <- paste("B19001",LETTERS[i], sep = "")
+  # group_name <- "B08113"
   
+  # Need to adjust based on number of variables of interest. 
+  # , paste(group_name,"_0", 10:17, "E", sep = "")
   vars_of_int_loop <- c(paste(group_name,"_00", 1:9, "E", sep = ""), paste(group_name,"_0", 10:17, "E", sep = ""))
   
-  # var_name <- paste("estimate", LETTERS[i], sep = "_")
+  var_name <- paste("estimate", LETTERS[i], sep = "_")
   
   groups[[i]] <- select(counties_race,c("state","county", "NAME", vars_of_int_loop)) %>% gather(variable, value, -c("state","county", "NAME")) %>% group_by(variable) %>% summarise("estimate" = sum(value)) %>% select(estimate)
   
 }
 
 by_race <- do.call(cbind, groups)
+
+num_tiers <- nrow(by_race)
+
 percents <- t(apply(by_race, 1, function(row_i) return(row_i/sum(row_i))))
+
 # Next is each entry subtracted from the first row. 
 # We're telling R which row we don't want. 
 skew <- t(apply(percents[-1, ], 1, function(row_i) return(row_i - percents[1,])))
@@ -79,4 +74,8 @@ sum(final_skew)*100/2
 ```
 
 
+Household type works, B11001
+Transport to work by race, B08105
+
+See if I can't make it work for this one, B08113
 
